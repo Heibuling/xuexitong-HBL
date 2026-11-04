@@ -36,12 +36,21 @@
 
 ### 方式一：一键脚本（推荐）
 
-```powershell
-# 下载后右键「使用 PowerShell 运行」
-.\install.ps1
-```
+1. 下载仓库（`Code` → `Download ZIP`）并解压
+2. **双击 `install.bat`**
 
 脚本会自动完成：检查环境 → 下载代码 → 配置参数 → 启动浏览器。
+
+> **不要双击 `install.ps1`**。Windows 默认禁止运行 PowerShell 脚本，会提示「在此系统上禁止运行脚本」。
+> `install.bat` 已内置 `-ExecutionPolicy Bypass`，双击它即可正常启动。
+
+如果 `install.bat` 也双击无效，在该文件夹地址栏输入 `cmd` 回车，然后执行：
+
+```cmd
+install.bat
+```
+
+错误信息会留在窗口里，便于排查。
 
 ### 方式二：手动安装
 
@@ -49,6 +58,8 @@
 git clone https://github.com/Heibuling/xuexitong-HBL.git
 cd xuexitong-HBL
 ```
+
+然后按下方「配置」章节手动操作。
 
 ## 配置
 
@@ -160,6 +171,12 @@ node index.mjs
 7. 状态写入本地，供下次继续
 
 ## 常见问题
+
+**Q: 提示「禁止运行脚本」/ UnauthorizedAccess？**
+这是 Windows PowerShell 的默认执行策略限制。**双击 `install.bat`** 即可，它内部已使用 `-ExecutionPolicy Bypass`。不要右键 `install.ps1` 直接运行。
+
+**Q: 双击 install.bat 窗口一闪就没了？**
+说明脚本内部报错退出。在该文件夹地址栏输入 `cmd` 回车，手动执行 `install.bat`，错误信息会留在窗口里，截图反馈即可。
 
 **Q: 连接失败 / 找不到页面？**
 确认浏览器以 `--remote-debugging-port=9222` 启动，且已打开目标页面。检查端口是否在监听：`Get-NetTCPConnection -LocalPort 9222`
