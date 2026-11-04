@@ -100,9 +100,12 @@ node index.mjs
 | `courseId` | 课程 ID | 必填 |
 | `clazzId` | 班级 ID | 必填 |
 | `cpi` | 用户标识 | 必填 |
+| `port` | CDP 调试端口 | `9222` |
 | `rate` | 媒体播放速率 | `2.0` |
 | `poll` | 轮询间隔（毫秒） | `2200` |
 | `retries` | 单项最大重试次数 | `5` |
+| `startId` | 起始章节 ID，留空则从第一个未完成节点开始 | `null` |
+| `endId` | 结束章节 ID，留空则处理到最后一节 | `null` |
 
 ## 工作原理
 
@@ -123,7 +126,10 @@ node index.mjs
 工具会尝试自动处理；若持续失败，可在浏览器中手动完成后重跑。
 
 **Q: 如何只处理部分章节？**
-在 `config.mjs` 中设置 `startId` / `endId` 限定处理区间。
+默认会处理课程内全部章节，无需额外配置。若只需处理某一段，在 `config.mjs` 中填入 `startId` / `endId`（章节 ID），可用 `node tools/scan-tree.mjs` 导出章节树查看各节点的 ID 与完成状态。
+
+**Q: 章节 ID 从哪里获取？**
+运行 `node tools/scan-tree.mjs`，会打印完整的章节编号、节点 ID、完成状态与标题，直接复制需要的 ID 填入 `config.mjs` 即可。
 
 **Q: 答案缓存如何清理？**
 删除 `data/bank.json` 即可重置。
