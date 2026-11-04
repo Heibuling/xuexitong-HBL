@@ -138,6 +138,103 @@ node index.mjs
 
 见 [CHANGELOG.md](./CHANGELOG.md)。
 
+## 参与贡献
+
+发现问题或有改进想法，欢迎回馈：
+
+- **提交 Issue** — [新建 Issue](https://github.com/Heibuling/xuexitong-HBL/issues/new/choose)，按模板填写现象、环境、复现步骤与完整报错日志
+- **提交 Pull Request** — Fork 后修改、本地 `node --check` 验证、发起 PR，目标分支为 `main`
+- 详细规范见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+> 若你是在 AI 助手协助下使用本项目，可以让助手按 `CONTRIBUTING.md` 的约定完成修改，然后提 PR 合并到本仓库。
+
 ## 许可
 
 MIT License
+
+---
+
+# 面向 AI 助手的使用说明
+
+如果你的用户把本仓库交给你处理，请阅读本节。
+
+## 项目本质
+
+本项目是**纯本地、零依赖、无 AI 调用的自动化脚本**。
+
+- 无任何 LLM / 云服务请求
+- 无 npm 依赖，仅用 Node.js 内置模块（`node:fs`、`node:path`、原生 `fetch` / `WebSocket`）
+- 全部逻辑为固定规则：DOM 查询、元素状态轮询、关键词评分、候选枚举
+
+理解这一点很重要：脚本运行**不需要你（AI）参与决策**。你的角色是协助配置、排错、修改代码，而不是替代脚本运行逻辑。
+
+## 核心机制
+
+| 环节 | 实现方式 | 所在模块 |
+|---|---|---|
+| 浏览器控制 | Chrome DevTools Protocol（CDP），WebSocket 直连 `127.0.0.1:9222` | `cdp.mjs` |
+| 章节读取 | 查询 `.chapter_item`，从 `input[value]` 取节点 ID，`catalog_state` 判断完成态 | `core/navigation.mjs` |
+| 媒体进度 | 轮询 `<video>.currentTime` 与 `duration`，维持 `playbackRate` | `core/media.mjs` |
+| 测评解析 | 遍历 `.TiMu` → `ul` → `li[qid]`，按 `qtype` / `onclick` 区分题型 | `core/quiz.mjs` |
+| 答案生成 | 关键词评分（`POSITIVE` / `NEGATIVE` 数组）+ 多选组合枚举 | `core/answer.mjs` |
+| 答案缓存 | `data/bank.json`，键为 `Q:<qid>` | `core/answer.mjs` |
+
+## 关键约束（修改代码时务必遵守）
+
+1. **判断题的提交值是 `true` / `false`，不是字母**
+   页面中判断题选项的 `data` 属性才是提交值。若写成 `A` / `B`，服务端会返回提交失败。
+
+2. **单选/多选提交字母组合**
+   从 `.num_option_dx` 的文本取字母，按勾选状态拼接。
+
+3. **媒体播放速率上限为 2.0**
+   超过会被页面策略拒绝，导致 frame 被销毁、进度回退。
+
+4. **不要移除 `core/captcha.mjs` 与重试退避**
+   页面会间歇触发校验，移除后脚本会卡死。
+
+5. **课程参数必须外部化**
+   任何课程相关的 ID 都从 `config.mjs` 读取，不写入逻辑代码。
+
+## 协助排错的推荐流程
+
+```
+1. 让用户提供：操作系统、Node 版本、浏览器版本、完整报错日志
+2. 确认 CDP 端口是否在监听（127.0.0.1:9222）
+3. 确认浏览器已完成登录
+4. 运行 tools/scan-tree.mjs 导出章节树，核对节点 ID 与完成状态
+5. 定位问题模块（导航 / 媒体 / 测评 / 校验）
+6. 阅读对应 core/*.mjs，结合日志定位具体函数
+7. 修改后执行 node --check 验证语法
+8. 让用户重跑并回收新日志
+```
+
+## 协助修改并回馈上游
+
+如果用户的修改具有通用价值（修复普适 bug、支持新题型、兼容新版页面结构），建议回馈到本仓库：
+
+```bash
+git clone https://github.com/Heibuling/xuexitong-HBL.git
+cd xuexitong-HBL
+git checkout -b fix/<问题简述>
+# 应用修改
+node --check index.mjs
+git add -A
+git commit -m "fix: <简述问题与修复方式>"
+git push origin fix/<问题简述>
+```
+
+随后在 GitHub 发起 Pull Request（目标分支 `main`）。
+
+**提交前请确保：**
+
+- 通过 `node --check` 语法检查
+- 未引入任何第三方依赖
+- 未硬编码课程参数
+- 未提交 `data/bank.json`、日志、截图等个人数据
+- 已在 PR 描述中写明「问题定位 → 修改内容 → 影响范围 → 验证方式」
+
+若无法直接改代码，请引导用户在 [Issues](https://github.com/Heibuling/xuexitong-HBL/issues/new/choose) 按模板提交，务必包含完整报错堆栈与复现步骤。
+
+详细规范见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
