@@ -1,0 +1,10 @@
+node_modules/
+*.log
+data/bank.json
+data/*.json
+.DS_Store
+Thumbs.db
+*.png
+*.ttf
+*.tmp
+.env
