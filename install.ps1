@@ -48,14 +48,47 @@ Write-Ok "OS: $os"
 Write-Ok "PowerShell: $($PSVersionTable.PSVersion)"
 
 $nodeExe = $null
-foreach ($c in @('node', "$env:ProgramFiles\nodejs\node.exe", "${env:ProgramFiles(x86)}\nodejs\node.exe")) {
-    try {
-        $p = Get-Command $c -ErrorAction SilentlyContinue
-        if ($p) { $nodeExe = $p.Source; break }
-    } catch {}
+
+# 1) PATH 里找
+$cmd = Get-Command node -ErrorAction SilentlyContinue
+if ($cmd) { $nodeExe = $cmd.Source }
+
+# 2) 常见安装路径
+if (-not $nodeExe) {
+    $nodeCandidates = @(
+        "$env:ProgramFiles\nodejs\node.exe",
+        "${env:ProgramFiles(x86)}\nodejs\node.exe",
+        "$env:LOCALAPPDATA\Programs\nodejs\node.exe",
+        "$env:APPDATA\npm\node.exe"
+    )
+    foreach ($c in $nodeCandidates) {
+        if (Test-Path $c) { $nodeExe = $c; break }
+    }
 }
-if (-not $nodeExe -and (Test-Path "$env:ProgramFiles\nodejs\node.exe")) {
-    $nodeExe = "$env:ProgramFiles\nodejs\node.exe"
+
+# 3) nvm / volta 等版本管理器
+if (-not $nodeExe) {
+    $vmPaths = @(
+        "$env:APPDATA\nvm",
+        "$env:LOCALAPPDATA\Volta\tools\image\node",
+        "$env:USERPROFILE\.volta\bin"
+    )
+    foreach ($vp in $vmPaths) {
+        if (Test-Path $vp) {
+            $found = Get-ChildItem $vp -Recurse -Filter "node.exe" -ErrorAction SilentlyContinue |
+                     Select-Object -First 1
+            if ($found) { $nodeExe = $found.FullName; break }
+        }
+    }
+}
+
+# 4) 注册表兜底
+if (-not $nodeExe) {
+    try {
+        $regPath = 'HKLM:\SOFTWARE\Node.js'
+        $v = (Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue).InstallPath
+        if ($v -and (Test-Path (Join-Path $v 'node.exe'))) { $nodeExe = Join-Path $v 'node.exe' }
+    } catch {}
 }
 
 if (-not $nodeExe) {
@@ -63,6 +96,8 @@ if (-not $nodeExe) {
     Write-Host ""
     Write-Host "  Please install Node.js LTS first, then re-run." -ForegroundColor Yellow
     Write-Host "  Download: https://nodejs.org/en/download" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  After install, close this window and run install.bat again." -ForegroundColor Gray
     Write-Host ""
     $open = Read-Host "  Open download page now? (Y/n)"
     if ($open -ne 'n') { Start-Process "https://nodejs.org/en/download" }
@@ -80,18 +115,42 @@ if ($verNum -lt $NODE_MIN) {
 }
 
 $edgeExe = $null
-foreach ($p in @(
-    "$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe",
-    "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
-)) {
+$edgeCandidates = @(
+    "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+    "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+    "$env:LOCALAPPDATA\Microsoft\Edge\Application\msedge.exe"
+)
+foreach ($p in $edgeCandidates) {
     if (Test-Path $p) { $edgeExe = $p; break }
 }
+
+if (-not $edgeExe) {
+    $regPaths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe'
+    )
+    foreach ($rp in $regPaths) {
+        try {
+            $v = (Get-ItemProperty -Path $rp -ErrorAction SilentlyContinue).'(default)'
+            if ($v -and (Test-Path $v)) { $edgeExe = $v; break }
+        } catch {}
+    }
+}
+
+if (-not $edgeExe) {
+    $cmd = Get-Command msedge.exe -ErrorAction SilentlyContinue
+    if ($cmd) { $edgeExe = $cmd.Source }
+}
+
 if (-not $edgeExe) {
     Write-Err "Microsoft Edge not found"
-    Write-Host "  https://www.microsoft.com/edge" -ForegroundColor Yellow
+    Write-Host "  Tried:" -ForegroundColor Gray
+    foreach ($p in $edgeCandidates) { Write-Host "    $p" -ForegroundColor DarkGray }
+    Write-Host ""
+    Write-Host "  Install Edge: https://www.microsoft.com/edge" -ForegroundColor Yellow
     exit 1
 }
-Write-Ok "Edge: $((Get-Item $edgeExe).VersionInfo.ProductVersion)"
+Write-Ok "Edge: $((Get-Item $edgeExe).VersionInfo.ProductVersion)  [$edgeExe]"
 
 Write-Step 2 "Fetching program files"
 
