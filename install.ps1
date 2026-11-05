@@ -1,4 +1,4 @@
-﻿# XueXiTong Web Learning Helper - Installer
+# XueXiTong Web Learning Helper - Installer
 # Usage: double-click install.bat (recommended)
 # Or: powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
 
@@ -10,7 +10,7 @@ try {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$SCRIPT_VERSION = '1.1.3'
+$SCRIPT_VERSION = '1.1.4'
 $REPO     = 'Heibuling/xuexitong-HBL'
 $BRANCH   = 'main'
 $NODE_MIN = 18
