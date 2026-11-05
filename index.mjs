@@ -2,7 +2,7 @@
 import { attachPage, sleep } from './cdp.mjs';
 import { CONFIG } from './config.mjs';
 import { getTree, openNode, sliceRange } from './core/navigation.mjs';
-import { taskStatus, playVideo, playAudio, readDocument, findMedia } from './core/media.mjs';
+import { taskStatus, playVideo, playAudio, readDocument, findMedia, tileStates, isVideoDone } from './core/media.mjs';
 import {
   parseQuiz, applyAnswer, syncFields, submit, confirmDialogs,
   clickRetry, openQuizTab, combinations, normalizeAnswer,
@@ -194,38 +194,79 @@ async function runQuiz(label) {
 }
 
 // ---------- 单节点处理 ----------
+// 一个章节节点里往往同时挂着多个任务点：视频在最上面，往下还有文档和测验。
+// 旧逻辑只按打开页面那一刻扫到的媒体帧处理一次，文档又滚错了帧，
+// 于是任务点永远差几个没完成，节点被反复重进——表现就是「只循环播视频」。
+// 这里改成多轮：每轮重新扫描、只处理未完成的，直到全部完成或没有进展。
 async function runNode(enc, node) {
   const opened = await openNode(page, enc, node.id);
   if (opened.locked) { log('   章节未开放'); return 'locked'; }
 
-  // 媒体任务点
-  const status = await taskStatus(page);
-  const media = await findMedia(page);
-  const allFinished = status && status.allFinished;
+  const maxPass = Number(CONFIG.nodePasses) || 6;
+  let quizPassed = false;
 
-  log(`   媒体: 视频${media.videos.length} 音频${media.audios.length} 文档${media.pdfs.length} | 任务点 ${status ? status.finished + '/' + status.total : '?'}`);
+  for (let pass = 1; pass <= maxPass; pass++) {
+    const status = await taskStatus(page);
+    const media = await findMedia(page);
+    const tiles = await tileStates(page);
 
-  if (!allFinished) {
+    const fin = status ? status.finished : 0;
+    const total = status ? status.total : 0;
+
+    if (status && status.allFinished) {
+      log(`   任务点全部完成 ${fin}/${total}`);
+      break;
+    }
+
+    log(`   第${pass}轮 | 视频${media.videos.length} 音频${media.audios.length} 文档${media.pdfs.length} 测验${media.work.length} | 任务点 ${fin}/${total}`);
+
+    let acted = false;
+
+    // 视频
     for (let i = 0; i < media.videos.length; i++) {
+      if (await isVideoDone(page, i)) { log(`   视频${i + 1} 已播完，跳过`); continue; }
       log(`   视频 ${i + 1}/${media.videos.length}`);
       await playVideo(page, i, log);
+      acted = true;
+      if (isVerifyPage(await page.url())) return 'verify';
     }
+
+    // 音频
     for (let i = 0; i < media.audios.length; i++) {
       log(`   音频 ${i + 1}/${media.audios.length}`);
       await playAudio(page, i, log);
+      acted = true;
     }
+
+    // 文档：按任务点状态跳过错过的，逐份滚动内层 panView
+    const pdfTiles = (tiles || []).filter(x => x.kind === 'pdf');
     for (let i = 0; i < media.pdfs.length; i++) {
+      if (pdfTiles[i] && pdfTiles[i].finished) { log(`   文档${i + 1} 已完成，跳过`); continue; }
       log(`   文档 ${i + 1}/${media.pdfs.length}`);
       await readDocument(page, i, log);
+      acted = true;
     }
-  } else {
-    log('   媒体任务点已完成，跳过');
-  }
 
-  // 测评
-  if (opened.hasQuizTab) {
-    const r = await runQuiz(node.num);
-    log(`   测评: ${r}`);
+    // 测验：标签页或内嵌 work 帧任一存在
+    if (!quizPassed && (media.work.length || opened.hasQuizTab)) {
+      const r = await runQuiz(node.num);
+      log(`   测评: ${r}`);
+      acted = true;
+      if (r === 'pass') quizPassed = true;
+    }
+
+    const after = await taskStatus(page);
+    const afterFin = after ? after.finished : fin;
+    if (after && after.allFinished) {
+      log(`   任务点全部完成 ${after.finished}/${after.total}`);
+      break;
+    }
+    if (!acted) { log('   本轮无可处理项，退出该节点'); break; }
+    if (pass >= 2 && afterFin <= fin) {
+      log(`   进度未变化 (${fin}→${afterFin})，退出该节点留给下一轮`);
+      break;
+    }
+    await sleep(2500);
   }
 
   return 'ok';
@@ -233,13 +274,21 @@ async function runNode(enc, node) {
 
 // ---------- 主循环 ----------
 async function main() {
-  log('=== 学习通网页学习助手 v1.1.3 ===');
-  log(`课程: ${CONFIG.courseId} | 班级: ${CONFIG.clazzId}`);
+  log('=== 学习通网页学习助手 v1.1.4 ===');
+  log(`课程: ${CONFIG.courseId} | 班级: ${CONFIG.clazzId} | 倍速上限: ${CONFIG.rate}x`);
 
   page = await attachPage(CONFIG.port, t => /chaoxing/.test(t.url || ''));
   log('已连接浏览器');
 
   for (let round = 0; round < 500; round++) {
+    // 风控校验页：停一会儿而不是继续猛刷，避免把封禁时间越拖越长
+    if (isVerifyPage(await page.url())) {
+      log('⚠ 进入风控校验页，暂停 60s 后重试');
+      log('  建议：把 config.mjs 的 rate 改成 1.0，或直接刷新页面完成校验');
+      await sleep(60000);
+      continue;
+    }
+
     const tree = await getTree(page, log);
     if (!tree) { log('章节树读取失败，重试'); await sleep(6000); continue; }
 
@@ -279,6 +328,7 @@ async function main() {
     try {
       const r = await runNode(tree.enc, next);
       if (r === 'locked') { log('   锁定，等待'); await sleep(45000); continue; }
+      if (r === 'verify') { log('   触发校验，暂停 60s'); await sleep(60000); continue; }
     } catch (e) {
       log('   异常:', e.message.slice(0, 140));
       await sleep(8000);
