@@ -4,6 +4,31 @@
 
 ---
 
+## [1.1.5] — 2026-11-05
+
+修复 1.1.4 的安装脚本在 Windows PowerShell 5.1 下无法启动的问题。
+
+### 修复
+
+- **`install.bat` 报「表达式或语句中包含意外的标记 }」**
+  - 现象：双击 `install.bat`，秒退并抛出
+    `所在位置 ...\install.ps1:95 字符: 1  + }  表达式或语句中包含意外的标记"}"`。
+  - 原因：1.1.4 打包时 `install.ps1` 丢了 UTF-8 BOM、换行也从 CRLF 变成了 LF。
+    Windows PowerShell 5.1 读取**无 BOM 的 UTF-8** 文件时按 ANSI（GBK）解码，
+    中文注释里的多字节序列会吞掉紧随其后的 ASCII 字符——包括 `}` 和 `"`，
+    于是括号平衡被破坏，报错位置还会指向后面的行，看起来毫无关联。
+    PowerShell 7 默认按 UTF-8 读，所以这个问题只在 5.1 上出现。
+  - 修复：`install.ps1` 恢复 **UTF-8 with BOM + CRLF**，并在 PowerShell 5.1 下
+    重新做了语法解析与启动冒烟测试。
+
+### 新增
+
+- `tools/check-encoding.mjs`：校验 `install.ps1` 必须带 BOM + CRLF、`install.bat` 必须无 BOM + CRLF。
+  已接入 `npm run check`，编码不合规直接退出非零，避免再次把坏文件发出去。
+- `package.json` 增加 `check:encoding` 脚本。
+
+---
+
 ## [1.1.4] — 2026-11-05
 
 修复两个会导致「节点卡死 / 触发风控」的问题。
