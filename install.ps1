@@ -10,7 +10,7 @@ try {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$SCRIPT_VERSION = '1.1.1'
+$SCRIPT_VERSION = '1.1.2'
 $REPO     = 'Heibuling/xuexitong-HBL'
 $BRANCH   = 'main'
 $NODE_MIN = 18
