@@ -11,31 +11,15 @@ import { solve, remember } from './core/answer.mjs';
 import { isVerifyPage } from './core/captcha.mjs';
 
 
-const HBL_LOGO = [
-  '  ##  ##   ##########   ##          ',
-  '  ##  ##   ##      ##   ##          ',
-  '  ##  ##   ##########   ##          ',
-  '  ######   ##      ##   ##          ',
-  '  ##  ##   ##########   ##########  ',
-  '  ##  ##   ##      ##   ##########  ',
-];
-
-function showLogo() {
-  console.log('');
-  for (const line of HBL_LOGO) console.log('\x1b[36m' + line + '\x1b[0m');
-  console.log('');
-}
-
-
-// HBL 进度条
+// HBL 进度条（纯 ASCII，避免 CJK 字体下 Ambiguous 字符宽度错位）
 const BAR_WIDTH = 28;
 function renderBar(done, total) {
   const pct = total > 0 ? done / total : 0;
   const filled = Math.min(BAR_WIDTH, Math.round(pct * BAR_WIDTH));
-  const empty = BAR_WIDTH - filled;
-  const bar = '█'.repeat(filled) + '░'.repeat(empty);
+  const empty = Math.max(0, BAR_WIDTH - filled);
+  const bar = '='.repeat(filled) + '-'.repeat(empty);
   const pctStr = (pct * 100).toFixed(1).padStart(5);
-  return `▕${bar}▏ ${pctStr}%  ${done}/${total}`;
+  return `[${bar}] ${pctStr}%  ${done}/${total}`;
 }
 
 // 终端标题显示 HBL
@@ -249,8 +233,7 @@ async function runNode(enc, node) {
 
 // ---------- 主循环 ----------
 async function main() {
-  showLogo();
-  log('=== 学习通网页学习助手 v1.1.0 ===');
+  log('=== 学习通网页学习助手 v1.1.3 ===');
   log(`课程: ${CONFIG.courseId} | 班级: ${CONFIG.clazzId}`);
 
   page = await attachPage(CONFIG.port, t => /chaoxing/.test(t.url || ''));
