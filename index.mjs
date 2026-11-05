@@ -10,9 +10,30 @@ import {
 import { solve, remember } from './core/answer.mjs';
 import { isVerifyPage } from './core/captcha.mjs';
 
+
+const HBL_LOGO = [
+  '  ##  ##   ##########   ##          ',
+  '  ##  ##   ##      ##   ##          ',
+  '  ##  ##   ##########   ##          ',
+  '  ######   ##      ##   ##          ',
+  '  ##  ##   ##########   ##########  ',
+  '  ##  ##   ##      ##   ##########  ',
+];
+
+function showLogo() {
+  console.log('');
+  for (const line of HBL_LOGO) console.log('\x1b[36m' + line + '\x1b[0m');
+  console.log('');
+}
+
+// 终端标题显示 HBL
+try {
+  if (process.stdout.isTTY) process.stdout.write('\x1b]0;[HBL] XueXiTong Helper\x07');
+} catch {}
+
 const log = (...a) => {
   const ts = new Date().toISOString().slice(11, 19);
-  console.log(`[${ts}]`, ...a);
+  console.log(`[${ts}] [HBL]`, ...a);
 };
 
 let page = null;
@@ -216,7 +237,8 @@ async function runNode(enc, node) {
 
 // ---------- 主循环 ----------
 async function main() {
-  log('=== 学习通网页学习助手 v1.0.0 ===');
+  showLogo();
+  log('=== 学习通网页学习助手 v1.1.0 ===');
   log(`课程: ${CONFIG.courseId} | 班级: ${CONFIG.clazzId}`);
 
   page = await attachPage(CONFIG.port, t => /chaoxing/.test(t.url || ''));
