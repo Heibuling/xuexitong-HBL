@@ -76,7 +76,7 @@ export async function openNode(page, enc, nodeId) {
   await page.keepVisible();
   await sleep(2000);
 
-  return page.eval(`(() => {
+  const base = await page.eval(`(() => {
     const text = (document.body.innerText || '').slice(0, 300);
     return {
       locked: /章节未开放|提交失败/.test(document.title + text),
@@ -84,6 +84,31 @@ export async function openNode(page, enc, nodeId) {
       hasVideoTab: !!document.querySelector('#dct1'),
     };
   })()`);
+
+  // 纯测验节点没有 #dct2 标签页，测验是内层 iframe 直接挂进来的
+  // （ananas/modules/work -> mooc-ans/work）。只看标签页会漏判，
+  // 导致节点永远不被处理、反复重进、进度不动。
+  const workFrameRe = /mooc-ans\/work|ananas\/modules\/work/;
+  const findWorkFrame = async () => {
+    const frames = await page.frames().catch(() => []);
+    return frames.some(f => workFrameRe.test(f.url || ''));
+  };
+
+  let hasWorkFrame = await findWorkFrame();
+
+  // 既没视频标签页也没测验标签页，多半是纯测验节点：等内层帧加载完
+  if (!hasWorkFrame && !base.hasQuizTab && !base.hasVideoTab) {
+    for (let i = 0; i < 10 && !hasWorkFrame; i++) {
+      await sleep(600);
+      hasWorkFrame = await findWorkFrame();
+    }
+  }
+
+  return {
+    ...base,
+    hasWorkFrame,
+    hasQuizTab: base.hasQuizTab || hasWorkFrame,
+  };
 }
 
 // 提取区间节点
