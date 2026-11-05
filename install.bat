@@ -5,7 +5,7 @@ title XueXiTong Helper - Installer
 
 echo.
 echo ==============================================================
-echo    XueXiTong Web Learning Helper - Installer v1.1.0
+echo    XueXiTong Web Learning Helper - Installer v1.1.3
 echo ==============================================================
 echo.
 
