@@ -10,6 +10,7 @@ try {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+$SCRIPT_VERSION = '1.1.0'
 $REPO     = 'Heibuling/xuexitong-HBL'
 $BRANCH   = 'main'
 $NODE_MIN = 18
@@ -24,7 +25,7 @@ function Write-Err($text)  { Write-Host "    X   $text" -ForegroundColor Red }
 
 Write-Host ""
 Write-Host "==============================================================" -ForegroundColor White
-Write-Host "   XueXiTong Web Learning Helper - Installer" -ForegroundColor White
+Write-Host "   XueXiTong Web Learning Helper - Installer v$SCRIPT_VERSION" -ForegroundColor White
 Write-Host "==============================================================" -ForegroundColor White
 Write-Host ""
 Write-Host "  IMPORTANT:" -ForegroundColor Yellow
@@ -187,7 +188,10 @@ if (-not (Test-Path (Join-Path $targetDir 'index.mjs'))) {
     if (-not $downloaded) {
         $zipUrls = @(
             "https://codeload.github.com/$REPO/zip/refs/heads/$BRANCH",
-            "https://ghproxy.net/https://codeload.github.com/$REPO/zip/refs/heads/$BRANCH"
+            "https://ghproxy.net/https://codeload.github.com/$REPO/zip/refs/heads/$BRANCH",
+            "https://gh-proxy.com/https://codeload.github.com/$REPO/zip/refs/heads/$BRANCH",
+            "https://ghfast.top/https://codeload.github.com/$REPO/zip/refs/heads/$BRANCH",
+            "https://mirror.ghproxy.com/https://codeload.github.com/$REPO/zip/refs/heads/$BRANCH"
         )
         $zipPath = Join-Path $env:TEMP "hbl-$([guid]::NewGuid().ToString('N').Substring(0,8)).zip"
 
@@ -202,8 +206,13 @@ if (-not (Test-Path (Join-Path $targetDir 'index.mjs'))) {
         }
 
         if (-not $downloaded) {
-            Write-Err "Download failed, check network"
-            Write-Host "  Manual: https://github.com/$REPO" -ForegroundColor Yellow
+            Write-Err "Download failed, all sources unreachable"
+            Write-Host ""
+            Write-Host "  Tried:" -ForegroundColor Gray
+            foreach ($u in $zipUrls) { Write-Host "    $u" -ForegroundColor DarkGray }
+            Write-Host ""
+            Write-Host "  Manual download: https://github.com/$REPO" -ForegroundColor Yellow
+            Write-Host "  Then unzip and run install.bat from that folder." -ForegroundColor Yellow
             exit 1
         }
 
@@ -218,7 +227,19 @@ if (-not (Test-Path (Join-Path $targetDir 'index.mjs'))) {
         }
         Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-        Write-Ok "Extracted"
+
+        # 校验核心文件是否齐全
+        $requiredFiles = @('index.mjs', 'cdp.mjs', 'config.mjs')
+        $missing = @()
+        foreach ($rf in $requiredFiles) {
+            if (-not (Test-Path (Join-Path $targetDir $rf))) { $missing += $rf }
+        }
+        if ($missing.Count -gt 0) {
+            Write-Err "Missing files after extract: $($missing -join ', ')"
+            Write-Host "  The download may be corrupted. Please retry." -ForegroundColor Yellow
+            exit 1
+        }
+        Write-Ok "Extracted (verified)"
     }
 }
 
@@ -340,4 +361,5 @@ Write-Host ""
 Write-Host ""
 Write-Host "  Program exited." -ForegroundColor Gray
 Write-Host "  Re-run: cd `"$targetDir`"; node index.mjs" -ForegroundColor Gray
+Write-Host "  Script version: $SCRIPT_VERSION" -ForegroundColor DarkGray
 Write-Host ""
