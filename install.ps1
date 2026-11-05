@@ -160,14 +160,40 @@ Write-Step 2 "Fetching program files"
 
 $targetDir = Join-Path $env:USERPROFILE 'xuexitong-HBL'
 
+# 读取已安装版本，避免复用旧代码
+$existingVer = $null
 if (Test-Path (Join-Path $targetDir 'index.mjs')) {
-    Write-Ok "Exists: $targetDir"
-    $reuse = Read-Host "    Use existing files? (Y/n)"
-    if ($reuse -eq 'n') {
+    try {
+        $txt = Get-Content (Join-Path $targetDir 'index.mjs') -Raw -Encoding UTF8
+        $m = [regex]::Match($txt, 'v(\d+\.\d+\.\d+)')
+        if ($m.Success) { $existingVer = $m.Groups[1].Value }
+    } catch {}
+}
+
+if ($existingVer) {
+    if ($existingVer -eq $SCRIPT_VERSION) {
+        Write-Ok "Existing install detected: v$existingVer (same as this installer)"
+        $reuse = Read-Host "    Reuse existing files? (Y/n)"
+        if ($reuse -eq 'n') {
+            $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+            $backup = "$targetDir.bak-$stamp"
+            Move-Item $targetDir $backup
+            Write-Ok "Backed up to: $backup"
+        } else {
+            Write-Ok "Reusing v$existingVer"
+        }
+    } else {
+        Write-Warn "Existing install is v$existingVer, this installer is v$SCRIPT_VERSION"
+        Write-Host "    Updating automatically (old version will be backed up)" -ForegroundColor Yellow
         $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
         $backup = "$targetDir.bak-$stamp"
-        Move-Item $targetDir $backup
-        Write-Ok "Backed up to: $backup"
+        try {
+            Move-Item $targetDir $backup -ErrorAction Stop
+            Write-Ok "Old version backed up to: $backup"
+        } catch {
+            Write-Warn "Backup failed, removing old install"
+            Remove-Item $targetDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -249,6 +275,22 @@ if (-not (Test-Path (Join-Path $targetDir 'index.mjs'))) {
 if (-not (Test-Path (Join-Path $targetDir 'index.mjs'))) {
     Write-Err "Files incomplete, please retry"
     exit 1
+}
+
+# 最终校验：实际安装版本必须与安装器一致，否则会跑到旧代码
+$finalVer = $null
+try {
+    $ftxt = Get-Content (Join-Path $targetDir 'index.mjs') -Raw -Encoding UTF8
+    $fm = [regex]::Match($ftxt, 'v(\d+\.\d+\.\d+)')
+    if ($fm.Success) { $finalVer = $fm.Groups[1].Value }
+} catch {}
+
+if ($finalVer -and $finalVer -ne $SCRIPT_VERSION) {
+    Write-Warn "Installed version is v$finalVer, expected v$SCRIPT_VERSION"
+    Write-Host "  The program files may be stale. Delete this folder and retry:" -ForegroundColor Yellow
+    Write-Host "    $targetDir" -ForegroundColor Gray
+} elseif ($finalVer) {
+    Write-Ok "Verified program version: v$finalVer"
 }
 Write-Ok "Program dir: $targetDir"
 
