@@ -1,12 +1,13 @@
 {
   "name": "xuexitong-hbl",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "学习通网页学习助手 — 基于 CDP 的章节导航与学习进度管理工具",
   "type": "module",
   "main": "index.mjs",
   "scripts": {
     "start": "node index.mjs",
-    "check": "node --check index.mjs && node --check cdp.mjs && node --check config.mjs",
+    "check": "node --check index.mjs && node --check cdp.mjs && node --check config.mjs && node tools/check-encoding.mjs",
+    "check:encoding": "node tools/check-encoding.mjs",
     "scan": "node tools/scan-tree.mjs"
   },
   "keywords": [
