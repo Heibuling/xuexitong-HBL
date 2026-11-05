@@ -10,10 +10,26 @@ try {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$SCRIPT_VERSION = '1.1.0'
+$SCRIPT_VERSION = '1.1.1'
 $REPO     = 'Heibuling/xuexitong-HBL'
 $BRANCH   = 'main'
 $NODE_MIN = 18
+
+# HBL ASCII logo
+function Write-HBLLogo {
+    $c1 = 'Cyan'
+    Write-Host ''
+    Write-Host '  ##  ##   ##########   ##          ' -ForegroundColor $c1
+    Write-Host '  ##  ##   ##      ##   ##          ' -ForegroundColor $c1
+    Write-Host '  ##  ##   ##########   ##          ' -ForegroundColor $c1
+    Write-Host '  ######   ##      ##   ##          ' -ForegroundColor $c1
+    Write-Host '  ##  ##   ##########   ##########  ' -ForegroundColor $c1
+    Write-Host '  ##  ##   ##      ##   ##########  ' -ForegroundColor $c1
+    Write-Host ''
+}
+
+# 设置窗口标题
+$Host.UI.RawUI.WindowTitle = 'HBL - XueXiTong Helper'
 
 function Write-Step($n, $text) {
     Write-Host ""
@@ -23,7 +39,7 @@ function Write-Ok($text)   { Write-Host "    OK  $text" -ForegroundColor Green }
 function Write-Warn($text) { Write-Host "    !   $text" -ForegroundColor Yellow }
 function Write-Err($text)  { Write-Host "    X   $text" -ForegroundColor Red }
 
-Write-Host ""
+Write-HBLLogo
 Write-Host "==============================================================" -ForegroundColor White
 Write-Host "   XueXiTong Web Learning Helper - Installer v$SCRIPT_VERSION" -ForegroundColor White
 Write-Host "==============================================================" -ForegroundColor White
@@ -350,13 +366,15 @@ if ($go -eq 'n') {
 }
 
 Set-Location $targetDir
-Write-Host ""
+Write-HBLLogo
 Write-Host "==============================================================" -ForegroundColor Green
 Write-Host "   RUNNING - close this window to stop" -ForegroundColor Green
 Write-Host "==============================================================" -ForegroundColor Green
 Write-Host ""
 
+$Host.UI.RawUI.WindowTitle = 'HBL - Running'
 & $nodeExe 'index.mjs'
+$Host.UI.RawUI.WindowTitle = 'HBL - Done'
 
 Write-Host ""
 Write-Host "  Program exited." -ForegroundColor Gray
