@@ -274,7 +274,7 @@ async function runNode(enc, node) {
 
 // ---------- 主循环 ----------
 async function main() {
-  log('=== 学习通网页学习助手 v1.1.4 ===');
+  log('=== 学习通网页学习助手 v1.1.5 ===');
   log(`课程: ${CONFIG.courseId} | 班级: ${CONFIG.clazzId} | 倍速上限: ${CONFIG.rate}x`);
 
   page = await attachPage(CONFIG.port, t => /chaoxing/.test(t.url || ''));
