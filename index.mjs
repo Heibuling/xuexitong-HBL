@@ -26,6 +26,18 @@ function showLogo() {
   console.log('');
 }
 
+
+// HBL 进度条
+const BAR_WIDTH = 28;
+function renderBar(done, total) {
+  const pct = total > 0 ? done / total : 0;
+  const filled = Math.min(BAR_WIDTH, Math.round(pct * BAR_WIDTH));
+  const empty = BAR_WIDTH - filled;
+  const bar = '█'.repeat(filled) + '░'.repeat(empty);
+  const pctStr = (pct * 100).toFixed(1).padStart(5);
+  return `▕${bar}▏ ${pctStr}%  ${done}/${total}`;
+}
+
 // 终端标题显示 HBL
 try {
   if (process.stdout.isTTY) process.stdout.write('\x1b]0;[HBL] XueXiTong Helper\x07');
@@ -249,7 +261,8 @@ async function main() {
     if (!tree) { log('章节树读取失败，重试'); await sleep(6000); continue; }
 
     const doneCount = tree.rows.filter(r => r.done).length;
-    log(`进度 ${tree.progress} | 完成 ${doneCount}/${tree.rows.length}`);
+    log(renderBar(doneCount, tree.rows.length));
+    if (tree.progress) log('   任务点 ' + tree.progress);
 
     const range = CONFIG.startId || CONFIG.endId
       ? sliceRange(tree, CONFIG.startId, CONFIG.endId)
@@ -276,7 +289,9 @@ async function main() {
     }
 
     const next = pending[0];
+    const pendingCount = range.filter(r => !r.done).length;
     log(`-> ${next.num} ${next.title}`);
+    log(`   剩余 ${pendingCount} 个节点  ${renderBar(doneCount, tree.rows.length)}`);
 
     try {
       const r = await runNode(tree.enc, next);
