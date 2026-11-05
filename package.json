@@ -1,6 +1,6 @@
 {
   "name": "xuexitong-hbl",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "学习通网页学习助手 — 基于 CDP 的章节导航与学习进度管理工具",
   "type": "module",
   "main": "index.mjs",
